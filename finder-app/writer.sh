@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Check if the correct number of arguments is provided
-if [ $# -ne 2 ]; then
+# Check if exactly two arguments are provided
+if [ "$#" -ne 2 ]; then
     echo "Error: Two arguments required - <writefile> <writestr>"
     exit 1
 fi
@@ -20,5 +20,4 @@ if ! echo "$writestr" > "$writefile"; then
 fi
 
 # Successful execution
-echo "Successfully wrote to the file '$writefile'"
 exit 0
