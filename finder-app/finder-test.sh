@@ -52,9 +52,16 @@ fi
 #make clean
 #make
 
+# Clean previous build artifacts and compile the "writer" application
+echo "Cleaning previous build artifacts..."
+make clean
+
+echo "Compiling the writer application..."
+make
+
 for i in $( seq 1 $NUMFILES)
 do
-	./writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	./writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
 OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
