@@ -8,7 +8,7 @@ CC = $(CROSS_PREFIX)gcc
 TARGET = writer
 
 # Set the source file
-SRC = /home/abhishekkoppa/AESD_assignments/assignment-1-AbhishekKoppaCU/writer.c
+SRC = writer.c
 
 # Object files
 OBJ = $(SRC:.c=.o)
