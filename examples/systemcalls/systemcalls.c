@@ -1,4 +1,11 @@
 #include "systemcalls.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,8 +23,23 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    if (cmd == NULL) 
+    {
+        return false; // command cannot be NULL
+    }
+    int ret;
+    ret = system(cmd);
+    if(ret == -1)
+    {
+        return false;
+    }
 
-    return true;
+    if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) 
+    {
+        return true; // Command executed successfully
+    }
+
+    return false;
 }
 
 /**
@@ -36,6 +58,11 @@ bool do_system(const char *cmd)
 
 bool do_exec(int count, ...)
 {
+    if (count < 1) 
+    {
+        fprintf(stderr, "Error: No command provided\n");
+        return false;
+    }
     va_list args;
     va_start(args, count);
     char * command[count+1];
@@ -48,6 +75,13 @@ bool do_exec(int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
+    
+    if (command[0][0] != '/')
+    {
+        fprintf(stderr, "Error: Command must be an absolute path\n");
+        va_end(args);
+        return false;
+    }
 
 /*
  * TODO:
@@ -58,10 +92,28 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    int pid, status;
+    pid = fork();
+    if(pid == -1)
+    {
+        perror("fork");
+        return false;
+    }
+    if(pid == 0)
+    {
+        execv(command[0], command);
+        perror("execv"); 
+        exit(EXIT_FAILURE); 
+    }
+    
+    if(waitpid(pid, &status, 0) == -1) 
+    {
+        perror("waitpid");
+        return false;
+    }
 
     va_end(args);
-
-    return true;
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
 /**
@@ -84,6 +136,12 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
+    if (command[0][0] != '/')
+    {
+        fprintf(stderr, "Error: Command must be an absolute path\n");
+        va_end(args);
+        return false;
+    }
 
 /*
  * TODO
@@ -92,8 +150,41 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) 
+    {
+        perror("open");
+        return false;
+    }
 
+    int pid = fork();
+    if(pid == -1)
+    {
+        perror("fork");
+        return false;
+    }
+
+    if(pid == 0)
+    {
+        if(dup2(fd, STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            exit(EXIT_FAILURE);
+        }
+        close(fd);
+        execv(command[0], command);
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+
+    close(fd);
+    int status;
+    if(waitpid(pid,   &status, 0)== -1)
+    {
+        perror("waitpid");
+        return false;
+    }
     va_end(args);
 
-    return true;
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
