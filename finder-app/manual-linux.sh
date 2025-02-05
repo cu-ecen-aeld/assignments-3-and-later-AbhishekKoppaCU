@@ -64,7 +64,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     echo "Kernel build complete!"
 
     # Copy the built kernel image to OUTDIR for easy access
-    cp arch/${ARCH}/boot/Image ${OUTDIR}/
+    #cp arch/${ARCH}/boot/Image ${OUTDIR}/
 fi
 
 
@@ -164,4 +164,4 @@ if [ ! -f "${OUTDIR}/initramfs.cpio.gz" ]; then
 fi
 
 echo "Adding the Image in outdir"
-cp /tmp/aeld/linux-stable/arch/arm64/boot/Image ${OUTDIR}/
+cp  ${OUTDIR}/linux-stable/arch/arm64/boot/Image ${OUTDIR}/
