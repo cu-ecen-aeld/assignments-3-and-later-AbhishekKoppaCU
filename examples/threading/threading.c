@@ -22,7 +22,11 @@ void* threadfunc(void* thread_param)
     nanosleep(&ts, NULL);
 
     // Obtain mutex
-    pthread_mutex_lock(thread_func_args->mutex);
+    if (pthread_mutex_lock(thread_func_args->mutex) != 0) 
+    {
+        ERROR_LOG("Failed to lock mutex");
+        return NULL;
+    }
 
     // Convert wait_to_release_ms to timespec format
     ts.tv_sec = thread_func_args->wait_to_release_ms / 1000;
@@ -30,7 +34,11 @@ void* threadfunc(void* thread_param)
     nanosleep(&ts, NULL);
 
     // Release mutex
-    pthread_mutex_unlock(thread_func_args->mutex);
+    if (pthread_mutex_unlock(thread_func_args->mutex) != 0) 
+    {
+        ERROR_LOG("Failed to unlock mutex");
+        return NULL;
+    }
 
     // Set success flag
     thread_func_args->thread_complete_success = true;
@@ -63,11 +71,11 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
     thread_struct->wait_to_release_ms = wait_to_release_ms;
     thread_struct->thread_complete_success = false;
 
-    pthread_mutex_lock(mutex);
 
     int ret = pthread_create(thread, NULL, threadfunc, (void *)thread_struct);
+    //pthread_mutex_lock(thread_struct->mutex);
     
-    if(!ret)
+    if(ret)
     {
         errno = ret;
         perror("pthread_create");
