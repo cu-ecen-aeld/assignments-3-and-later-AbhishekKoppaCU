@@ -65,27 +65,26 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
         ERROR_LOG("Memory allocation failed");
         return false;
     }
-    //char* thread_data = "Thread Data";
+    //Set the parameteres for the new thread
     thread_struct->mutex = mutex;
     thread_struct->wait_to_obtain_ms = wait_to_obtain_ms;
     thread_struct->wait_to_release_ms = wait_to_release_ms;
     thread_struct->thread_complete_success = false;
 
 
-    int ret = pthread_create(thread, NULL, threadfunc, (void *)thread_struct);
-    //pthread_mutex_lock(thread_struct->mutex);
+    int ret = pthread_create(thread, NULL, threadfunc, (void *)thread_struct); //Passing the structure as a void pointer to the starter func
+    
     
     if(ret)
     {
         errno = ret;
         perror("pthread_create");
-        //hread_struct->thread_complete_success = false;
+        
         free(thread_struct);
         return false;
     }
     thread_struct->threadID = *thread;
-    //thread_struct->thread_complete_success = true;
-    //pthread_exit (NULL);
+    
 
     return true;
 }
