@@ -2,6 +2,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
+#include <errno.h>
+
 
 // Optional: use these functions to add debug or error prints to your application
 #define DEBUG_LOG(msg,...)
@@ -10,12 +13,40 @@
 
 void* threadfunc(void* thread_param)
 {
+    struct thread_data* thread_func_args = (struct thread_data *) thread_param;
 
-    // TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
-    // hint: use a cast like the one below to obtain thread arguments from your parameter
-    //struct thread_data* thread_func_args = (struct thread_data *) thread_param;
-    return thread_param;
+    // Convert wait_to_obtain_ms to timespec format
+    struct timespec ts;
+    ts.tv_sec = thread_func_args->wait_to_obtain_ms / 1000;  
+    ts.tv_nsec = (thread_func_args->wait_to_obtain_ms % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+
+    // Obtain mutex
+    if (pthread_mutex_lock(thread_func_args->mutex) != 0) 
+    {
+        ERROR_LOG("Failed to lock mutex");
+        return NULL;
+    }
+
+    // Convert wait_to_release_ms to timespec format
+    ts.tv_sec = thread_func_args->wait_to_release_ms / 1000;
+    ts.tv_nsec = (thread_func_args->wait_to_release_ms % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+
+    // Release mutex
+    if (pthread_mutex_unlock(thread_func_args->mutex) != 0) 
+    {
+        ERROR_LOG("Failed to unlock mutex");
+        return NULL;
+    }
+
+    // Set success flag
+    thread_func_args->thread_complete_success = true;
+
+    // Return the thread_data pointer
+    return (void*)thread_func_args;
 }
+
 
 
 bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int wait_to_obtain_ms, int wait_to_release_ms)
@@ -28,6 +59,33 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
      *
      * See implementation details in threading.h file comment block
      */
-    return false;
+    struct thread_data* thread_struct = (struct thread_data*)malloc(sizeof(struct thread_data));
+    if (thread_struct == NULL) 
+    {
+        ERROR_LOG("Memory allocation failed");
+        return false;
+    }
+    //Set the parameteres for the new thread
+    thread_struct->mutex = mutex;
+    thread_struct->wait_to_obtain_ms = wait_to_obtain_ms;
+    thread_struct->wait_to_release_ms = wait_to_release_ms;
+    thread_struct->thread_complete_success = false;
+
+
+    int ret = pthread_create(thread, NULL, threadfunc, (void *)thread_struct); //Passing the structure as a void pointer to the starter func
+    
+    
+    if(ret)
+    {
+        errno = ret;
+        perror("pthread_create");
+        
+        free(thread_struct);
+        return false;
+    }
+    thread_struct->threadID = *thread;
+    
+
+    return true;
 }
 
