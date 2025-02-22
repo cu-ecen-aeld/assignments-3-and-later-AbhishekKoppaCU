@@ -111,6 +111,15 @@ int main(int argc, char *argv[])
         freeaddrinfo(servinfo);
         exit(EXIT_FAILURE);
     }
+    
+    int optval = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) 
+    {
+        syslog(LOG_ERR, "Failed to set SO_REUSEADDR: %s", strerror(errno));
+        freeaddrinfo(servinfo);
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
 
     if (bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1)  // Removed semicolon
     {
