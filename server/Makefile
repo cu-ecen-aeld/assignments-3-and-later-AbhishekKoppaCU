@@ -1,5 +1,5 @@
 # Set default compiler (Native or Cross)
-CROSS_COMPILE ?= 
+CROSS_COMPILE ?= aarch64-none-linux-gnu-
 
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -g -Wall
