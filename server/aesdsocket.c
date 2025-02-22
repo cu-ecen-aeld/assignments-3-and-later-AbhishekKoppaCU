@@ -37,42 +37,40 @@ void handle_signal(int sig)
     exit(0);
 }
 
-void daemonize()
+void daemonize() 
 {
-    pid_t pid, sid;
-
-    pid = fork();
-    if (pid < 0)
+    pid_t pid = fork();
+    if (pid < 0) 
     {
-        syslog(LOG_ERR, "Failed to fork process");
         exit(EXIT_FAILURE);
     }
-    if (pid > 0)
+    if (pid > 0) 
+    {
+        exit(EXIT_SUCCESS);
+    }
+    
+    if (setsid() < 0) 
+    {
+        exit(EXIT_FAILURE);
+    }
+    
+    signal(SIGHUP, SIG_IGN);
+    pid = fork();
+    
+    if (pid < 0) 
+    {
+        exit(EXIT_FAILURE);
+    }
+    if (pid > 0) 
     {
         exit(EXIT_SUCCESS);
     }
 
-    sid = setsid();
-    if (sid < 0)
-    {
-        syslog(LOG_ERR, "Failed to create new session");
-        exit(EXIT_FAILURE);
-    }
-
-    if (chdir("/") < 0)
-    {
-        syslog(LOG_ERR, "Failed to change working directory to /");
-        exit(EXIT_FAILURE);
-    }
-
-    for (int fd = 0; fd < sysconf(_SC_OPEN_MAX); fd++)
-    {
-        close(fd);
-    }
-
-    open("/dev/null", O_RDWR);
-    dup(0);
-    dup(0);
+    umask(0);
+    chdir("/");
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 }
 
 int main(int argc, char *argv[])
@@ -84,6 +82,7 @@ int main(int argc, char *argv[])
     socklen_t addr_size;
     char buffer[BUFFER_SIZE];
 
+	printf("Hi");
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -109,15 +108,18 @@ int main(int argc, char *argv[])
     if (sockfd == -1)
     {
         syslog(LOG_ERR, "Failed to create socket");
+        freeaddrinfo(servinfo);
         exit(EXIT_FAILURE);
     }
 
     if (bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1)  // Removed semicolon
     {
         syslog(LOG_ERR, "Failed to bind socket to port %d", PORT);
+        freeaddrinfo(servinfo);
         close(sockfd);
         exit(EXIT_FAILURE);
     }
+    freeaddrinfo(servinfo);
 
     if (daemonize_flag)
     {
