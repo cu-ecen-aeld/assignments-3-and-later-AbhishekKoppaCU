@@ -64,10 +64,6 @@ void handle_signal(int sig)
     }
 
     
-    // for (int i = 0; i < thread_count; i++) 
-    // {
-    //     pthread_join(threads[i], NULL);
-    // }
     pthread_join(timestamp_thread, NULL);
     pthread_mutex_destroy(&aesdsocket_mutex);  // Destroy mutex
     closelog();
@@ -139,88 +135,84 @@ void* timestamp_threadfunc(void* arg)
 
 void* threadfunc(void* thread_param)
 {
-    char buffer[BUFFER_SIZE];
     slist_data_t *thread_struct = (slist_data_t *)thread_param;
-
     struct sockaddr_in *addr = thread_struct->socket_address;
     int new_fd = thread_struct->new_fd;
     int file_fd;
-    ssize_t bytes_received;
-        syslog(LOG_INFO, "Accepted connection from %s", inet_ntoa(addr->sin_addr));
 
-        // Lock mutex before writing to the file
-        pthread_mutex_lock(&aesdsocket_mutex);
+    syslog(LOG_INFO, "Accepted connection from %s", inet_ntoa(addr->sin_addr));
 
-        file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
-        if (file_fd == -1)
-        {
-            syslog(LOG_ERR, "Failed to open file");
-            close(new_fd);
-            pthread_mutex_unlock(&aesdsocket_mutex);
-            return NULL;
-        }
-
-        
-        while ((bytes_received = recv(new_fd, buffer, sizeof(buffer) - 1, 0)) > 0)
-        {
-            buffer[bytes_received] = '\0';
-            if (write(file_fd, buffer, bytes_received) == -1)
-            {
-                syslog(LOG_ERR, "Failed to write to file");
-                break;
-            }
-
-            // Ensure all writes are flushed to disk
-            fsync(file_fd);
-
-        if (strchr(buffer, '\n')) // Full line received, now send file contents
-        {
-            // Close write mode after receiving a line
-            close(file_fd);  
-            file_fd = open(FILE_PATH, O_RDONLY);  // Reopen in read mode
-
-            if (file_fd == -1)
-            {
-                syslog(LOG_ERR, "Failed to open file for reading");
-                break;
-            }
-        
-            ssize_t bytes_written;
-            while ((bytes_written = read(file_fd, buffer, sizeof(buffer))) > 0)
-            {
-                if (send(new_fd, buffer, bytes_written, 0) == -1)
-                {
-                    syslog(LOG_ERR, "Failed to send data to client");
-                    break;
-                }
-            }
-
-            close(file_fd);  // Close after reading
-
-            
-                
-            // Reopen the file in append mode for the next write
-            file_fd = open(FILE_PATH, O_WRONLY | O_APPEND | O_CREAT, 0666);  // Ensure appending data
-            if (file_fd == -1)
-            {
-                syslog(LOG_ERR, "Failed to reopen file for writing");
-                break;
-            }
-        }
-        }
-
-        // Unlock the mutex after writing and reading
-        pthread_mutex_unlock(&aesdsocket_mutex);
-
-
-        syslog(LOG_INFO, "Closed connection from %s", inet_ntoa(addr->sin_addr));
+    // Buffer for receiving data dynamically
+    size_t buffer_size = 1024; // Initial buffer size
+    char *buffer = (char *)malloc(buffer_size);
+    if (!buffer) {
+        syslog(LOG_ERR, "Memory allocation failed");
         close(new_fd);
-        thread_struct->status = true;
-
-        //free(thread_param);
         return NULL;
-    
+    }
+
+    size_t total_received = 0;
+    ssize_t bytes_received;
+
+    pthread_mutex_lock(&aesdsocket_mutex);
+    file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
+    if (file_fd == -1) {
+        syslog(LOG_ERR, "Failed to open file");
+        close(new_fd);
+        free(buffer);
+        pthread_mutex_unlock(&aesdsocket_mutex);
+        return NULL;
+    }
+
+    while ((bytes_received = recv(new_fd, buffer + total_received, buffer_size - total_received - 1, 0)) > 0) 
+    {
+        total_received += bytes_received;
+        buffer[total_received] = '\0';
+
+        // If buffer is full, resize it
+        if (total_received >= buffer_size - 1) {
+            buffer_size *= 2; // Double the buffer size
+            char *new_buffer = realloc(buffer, buffer_size);
+            if (!new_buffer) {
+                syslog(LOG_ERR, "Memory reallocation failed");
+                break;
+            }
+            buffer = new_buffer;
+        }
+
+        
+        if (strchr(buffer, '\n')) {
+            break;
+        }
+    }
+
+    // Write the full received message to file
+    if (write(file_fd, buffer, total_received) == -1) {
+        syslog(LOG_ERR, "Failed to write to file");
+    }
+
+    fsync(file_fd);
+    close(file_fd);
+    pthread_mutex_unlock(&aesdsocket_mutex);
+
+    // Send back the full file content
+    pthread_mutex_lock(&aesdsocket_mutex);
+    file_fd = open(FILE_PATH, O_RDONLY);
+    if (file_fd != -1) {
+        while ((bytes_received = read(file_fd, buffer, buffer_size)) > 0) {
+            send(new_fd, buffer, bytes_received, 0);
+        }
+        close(file_fd);
+    }
+    pthread_mutex_unlock(&aesdsocket_mutex);
+
+    syslog(LOG_INFO, "Closed connection from %s", inet_ntoa(addr->sin_addr));
+    close(new_fd);
+    free(buffer);
+    thread_struct->status = true;
+    return NULL;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -323,15 +315,7 @@ int main(int argc, char *argv[])
         
         slist_data_t *node = SLIST_FIRST(&head);
         slist_data_t *temp = NULL; 
-	//SLIST_FOREACH(node, &head, entries); 
-	{ 
-    	    //if (node->status) 
-    	    {  // Thread has finished execution
-        	//pthread_join(node->threadID, NULL);
-        	//SLIST_REMOVE(&head, node, slist_data_s, entries);
-        	//free(node);  // Free memory here
-            }
-	}
+	
 	
 	while(node)	
 	{
