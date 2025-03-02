@@ -4,7 +4,7 @@ CROSS_COMPILE ?=
 CC ?= $(CROSS_COMPILE)gcc
 CFLAGS ?= -Wall -Werror -g -pthread
 LDFLAGS ?=
-EXECUTABLE = aesdsocket
+EXECUTABLE := aesdsocket
 
 SRC = aesdsocket.c
 OBJ = aesdsocket.o
