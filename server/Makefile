@@ -1,20 +1,21 @@
 # Set default compiler (Native or Cross)
 CROSS_COMPILE ?= 
 
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -g -Wall
+CC ?= $(CROSS_COMPILE)gcc
+CFLAGS ?= -Wall -Werror -g -pthread
+LDFLAGS ?=
 EXECUTABLE = aesdsocket
 
 SRC = aesdsocket.c
 OBJ = aesdsocket.o
 
-all: $(EXECUTABLE)
+all: $(TARGET)
 
-$(EXECUTABLE): $(OBJ)
-	$(CC) $(CFLAGS) -o $(EXECUTABLE) $(OBJ)
+$(TARGET): $(OBJ)
+	$(CC) $(CFLAGS)$(LDFLAGS) -o $@ $^
 
-$(OBJ): $(SRC)
-	$(CC) $(CFLAGS) -c -o $(OBJ) $(SRC)
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(EXECUTABLE) $(OBJ)
