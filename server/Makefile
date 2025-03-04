@@ -1,23 +1,20 @@
-# Set default compiler (Native or Cross)
-CROSS_COMPILE ?= aarch64-none-linux-gnu-
+CROSS_COMPILE ?=
 
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -g -Wall
-EXECUTABLE = aesdsocket
+CC ?= $(CROSS_COMPILE)gcc
+CFLAGS ?= -Wall -Werror -g -pthread
+LDFLAGS ?=
+TARGET := aesdsocket
+SRC := aesdsocket.c
+OBJ := $(SRC:.c=.o)
 
-SRC = aesdsocket.c
-OBJ = aesdsocket.o
+.PHONY: all
+all: $(TARGET)
 
-all: $(EXECUTABLE)
+$(TARGET): $(OBJ)
+	$(CC) $(CFLAGS)$(LDFLAGS) -o $@ $^
 
-$(EXECUTABLE): $(OBJ)
-	$(CC) $(CFLAGS) -o $(EXECUTABLE) $(OBJ)
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ): $(SRC)
-	$(CC) $(CFLAGS) -c -o $(OBJ) $(SRC)
-
+.PHONY: clean
 clean:
-	rm -f $(EXECUTABLE) $(OBJ)
-
-# .PHONY ensures these targets are always executed when called
-.PHONY: all clean
