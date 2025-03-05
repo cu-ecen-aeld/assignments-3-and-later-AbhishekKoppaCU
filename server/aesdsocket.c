@@ -216,7 +216,7 @@ void* threadfunc(void* thread_param)
 
 int main(int argc, char *argv[])
 {
-    int status, new_fd, file_fd;
+    int status, new_fd;
     struct addrinfo hints, *servinfo;
     int daemonize_flag = 0;
     struct sockaddr_storage their_addr;
