@@ -127,16 +127,16 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count, loff
     else if (dev->temp_buf.capacity < dev->temp_buf.size + count) 
     {
         size_t new_capacity = dev->temp_buf.size + count + 50;
-        if (new_capacity > MAX_TEMP_BUFFER_SIZE) 
-        {
-            PDEBUG("Temp buffer exceeded max size, clearing\n");
-            kfree(dev->temp_buf.data);
-            dev->temp_buf.data = NULL;
-            dev->temp_buf.size = 0;
-            dev->temp_buf.capacity = 0;
-            mutex_unlock(&dev->aesd_CB_mutex);
-            return -ENOMEM;
-        }
+        // if (new_capacity > MAX_TEMP_BUFFER_SIZE) 
+        // {
+        //     PDEBUG("Temp buffer exceeded max size, clearing\n");
+        //     kfree(dev->temp_buf.data);
+        //     dev->temp_buf.data = NULL;
+        //     dev->temp_buf.size = 0;
+        //     dev->temp_buf.capacity = 0;
+        //     mutex_unlock(&dev->aesd_CB_mutex);
+        //     return -ENOMEM;
+        // }
         char *new_data = krealloc(dev->temp_buf.data, new_capacity, GFP_KERNEL);
         if (new_data == NULL) 
         {
