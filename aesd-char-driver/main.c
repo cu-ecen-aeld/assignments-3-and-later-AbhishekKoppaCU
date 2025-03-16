@@ -175,13 +175,13 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count, loff
         buffer_struct.buffptr = command_data;
         buffer_struct.size = dev->temp_buf.size;
 
-        struct aesd_buffer_entry *old_entry = aesd_circular_buffer_add_entry(&dev->aesd_write_buffer, &buffer_struct);
+        const char *old_entry = aesd_circular_buffer_add_entry(&dev->aesd_write_buffer, &buffer_struct);
 
         // Free the old entry if necessary
-        if (old_entry && old_entry->buffptr) 
+        if (old_entry) 
         {
             PDEBUG("Freeing old buffer entry\n");
-            kfree(old_entry->buffptr);
+            kfree((void*)old_entry);
         }
 
         dev->temp_buf.size = 0;
@@ -278,7 +278,7 @@ void aesd_cleanup_module(void)
     {
         if (entryptr->buffptr) 
         {  
-            kfree(entryptr->buffptr);  // Use kfree() instead of free()
+            kfree(entryptr->buffptr);  
             entryptr->buffptr = NULL;
             entryptr->size = 0;  
         }
