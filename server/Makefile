@@ -1,5 +1,5 @@
 CROSS_COMPILE = aarch64-none-linux-gnu- 
-
+#dummy comment
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -Wall -Werror -g -pthread
 LDFLAGS =
