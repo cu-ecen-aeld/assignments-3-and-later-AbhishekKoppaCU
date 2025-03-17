@@ -20,11 +20,17 @@
 
 #define PORT 9000
 #define BACKLOG 10
-#define FILE_PATH "/var/tmp/aesdsocketdata"
+//#define FILE_PATH "/var/tmp/aesdsocketdata"
 #define BUFFER_SIZE 1024
 
 #ifndef USE_AESD_CHAR_DEVICE
-#define USE_AESD_CHAR_DEVICE 1
+#define USE_AESD_CHAR_DEVICE 1  
+#endif
+
+#if USE_AESD_CHAR_DEVICE
+#define FILE_PATH "/dev/aesdchar"
+#else
+#define FILE_PATH "/var/tmp/aesdsocketdata"
 #endif
 
 // SLIST.
@@ -60,17 +66,18 @@ void handle_signal(int sig)
 {
     syslog(LOG_INFO, "Caught signal %d, exiting", sig);
     stop = 1;
-    #ifndef USE_AESD_CHAR_DEVICE
+    //#ifndef USE_AESD_CHAR_DEVICE
         remove(FILE_PATH); // Remove only if using a regular file
-    #endif
+    //#endif
 
     if (sockfd != -1) 
     {
         close(sockfd);
     }
 
-    
+    #ifndef USE_AESD_CHAR_DEVICE
     pthread_join(timestamp_thread, NULL);
+    #endif
     pthread_mutex_destroy(&aesdsocket_mutex);  // Destroy mutex
     closelog();
     exit(0);
@@ -112,6 +119,7 @@ void daemonize()
     close(STDERR_FILENO);
 }
 
+#ifndef USE_AESD_CHAR_DEVICE
 void* timestamp_threadfunc(void* arg) 
 {
     #ifdef USE_AESD_CHAR_DEVICE
@@ -141,6 +149,7 @@ void* timestamp_threadfunc(void* arg)
     }
     return NULL;
 }
+#endif
 
 void* threadfunc(void* thread_param)
 {
@@ -193,11 +202,11 @@ void* threadfunc(void* thread_param)
     
     
     
-    #ifdef USE_AESD_CHAR_DEVICE
-        file_fd = open("/dev/aesdchar", O_WRONLY);
-    #else
+    //#ifdef USE_AESD_CHAR_DEVICE
+        //file_fd = open("/dev/aesdchar", O_WRONLY);
+    //#else
         file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
-    #endif
+    //#endif
 
     if (file_fd == -1) {
         syslog(LOG_ERR, "Failed to open file");
