@@ -1,8 +1,8 @@
-CROSS_COMPILE ?=
-
-CC ?= $(CROSS_COMPILE)gcc
-CFLAGS ?= -Wall -Werror -g -pthread
-LDFLAGS ?=
+CROSS_COMPILE ?= 
+#dummy comment test
+CC = $(CROSS_COMPILE)gcc
+CFLAGS = -Wall -Werror -g -pthread
+LDFLAGS =
 TARGET := aesdsocket
 SRC := aesdsocket.c
 OBJ := $(SRC:.c=.o)
@@ -18,3 +18,4 @@ $(TARGET): $(OBJ)
 
 .PHONY: clean
 clean:
+	rm -f $(target) $(OBJ)

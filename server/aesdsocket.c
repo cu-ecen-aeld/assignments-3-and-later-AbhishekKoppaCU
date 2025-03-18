@@ -20,8 +20,18 @@
 
 #define PORT 9000
 #define BACKLOG 10
-#define FILE_PATH "/var/tmp/aesdsocketdata"
+//#define FILE_PATH "/var/tmp/aesdsocketdata"
 #define BUFFER_SIZE 1024
+
+#ifndef USE_AESD_CHAR_DEVICE
+#define USE_AESD_CHAR_DEVICE 1  
+#endif
+
+#if USE_AESD_CHAR_DEVICE
+#define FILE_PATH "/dev/aesdchar"
+#else
+#define FILE_PATH "/var/tmp/aesdsocketdata"
+#endif
 
 // SLIST.
 typedef struct slist_data_s slist_data_t;
@@ -56,15 +66,18 @@ void handle_signal(int sig)
 {
     syslog(LOG_INFO, "Caught signal %d, exiting", sig);
     stop = 1;
-    remove(FILE_PATH);
+    //#ifndef USE_AESD_CHAR_DEVICE
+        remove(FILE_PATH); // Remove only if using a regular file
+    //#endif
 
     if (sockfd != -1) 
     {
         close(sockfd);
     }
 
-    
+    #ifndef USE_AESD_CHAR_DEVICE
     pthread_join(timestamp_thread, NULL);
+    #endif
     pthread_mutex_destroy(&aesdsocket_mutex);  // Destroy mutex
     closelog();
     exit(0);
@@ -106,8 +119,12 @@ void daemonize()
     close(STDERR_FILENO);
 }
 
+#ifndef USE_AESD_CHAR_DEVICE
 void* timestamp_threadfunc(void* arg) 
 {
+    #ifdef USE_AESD_CHAR_DEVICE
+    return NULL; // No timestamps needed when using the char device
+    #endif
     while (!stop) 
     {  
         sleep(10);  
@@ -132,6 +149,7 @@ void* timestamp_threadfunc(void* arg)
     }
     return NULL;
 }
+#endif
 
 void* threadfunc(void* thread_param)
 {
@@ -155,14 +173,7 @@ void* threadfunc(void* thread_param)
     ssize_t bytes_received;
 
     pthread_mutex_lock(&aesdsocket_mutex);
-    file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
-    if (file_fd == -1) {
-        syslog(LOG_ERR, "Failed to open file");
-        close(new_fd);
-        free(buffer);
-        pthread_mutex_unlock(&aesdsocket_mutex);
-        return NULL;
-    }
+    
 
     while ((bytes_received = recv(new_fd, buffer + total_received, buffer_size - total_received - 1, 0)) > 0) 
     {
@@ -185,6 +196,25 @@ void* threadfunc(void* thread_param)
             break;
         }
     }
+    
+    if(total_received > 0)
+    {
+    
+    
+    
+    //#ifdef USE_AESD_CHAR_DEVICE
+        //file_fd = open("/dev/aesdchar", O_WRONLY);
+    //#else
+        file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
+    //#endif
+
+    if (file_fd == -1) {
+        syslog(LOG_ERR, "Failed to open file");
+        close(new_fd);
+        free(buffer);
+        pthread_mutex_unlock(&aesdsocket_mutex);
+        return NULL;
+    }
 
     // Write the full received message to file
     if (write(file_fd, buffer, total_received) == -1) {
@@ -194,10 +224,17 @@ void* threadfunc(void* thread_param)
     fsync(file_fd);
     close(file_fd);
     pthread_mutex_unlock(&aesdsocket_mutex);
+    }
 
+    if(total_received > 0)
+    {
     // Send back the full file content
     pthread_mutex_lock(&aesdsocket_mutex);
-    file_fd = open(FILE_PATH, O_RDONLY);
+    #ifdef USE_AESD_CHAR_DEVICE
+        file_fd = open("/dev/aesdchar", O_RDONLY);
+    #else
+        file_fd = open(FILE_PATH, O_RDONLY);
+    #endif
     if (file_fd != -1) {
         while ((bytes_received = read(file_fd, buffer, buffer_size)) > 0) {
             send(new_fd, buffer, bytes_received, 0);
@@ -205,6 +242,7 @@ void* threadfunc(void* thread_param)
         close(file_fd);
     }
     pthread_mutex_unlock(&aesdsocket_mutex);
+    }
 
     syslog(LOG_INFO, "Closed connection from %s", inet_ntoa(addr->sin_addr));
     close(new_fd);
@@ -285,7 +323,11 @@ int main(int argc, char *argv[])
     syslog(LOG_INFO, "Server started on port %d", PORT);
     
     
-    pthread_create(&timestamp_thread, NULL, timestamp_threadfunc, NULL);
+    #ifdef USE_AESD_CHAR_DEVICE
+        syslog(LOG_INFO, "Using character device /dev/aesdchar");
+    #else
+        pthread_create(&timestamp_thread, NULL, timestamp_threadfunc, NULL);
+    #endif
 
     while (!stop)
     {
