@@ -244,7 +244,7 @@ static long aesd_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned lo
         pr_info("IOCTL SEEK: cmd=%u, offset=%u, f_pos=%lld\n", seekto.write_cmd, seekto.write_cmd_offset, new_f_pos);
         return 0;
     }
-    pr_info("Cmd used: %ld", cmd);
+    pr_info("Cmd used: 0x%x, expected: 0x%x\n", cmd, AESDCHAR_IOCSEEKTO);
     return -ENOTTY;    //wrong command chosen.
 }
 
