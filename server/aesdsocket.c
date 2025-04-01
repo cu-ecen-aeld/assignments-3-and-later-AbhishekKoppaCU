@@ -17,6 +17,8 @@
 #include <pthread.h>
 #include <sys/queue.h>
 #include <time.h>
+#include "../aesd-char-driver/aesd_ioctl.h"
+#include <sys/ioctl.h>
 
 #define PORT 9000
 #define BACKLOG 10
@@ -32,6 +34,8 @@
 #else
 #define FILE_PATH "/var/tmp/aesdsocketdata"
 #endif
+
+#define IOCTL_CMD_STR "AESDCHAR_IOCSEEKTO:"
 
 // SLIST.
 typedef struct slist_data_s slist_data_t;
@@ -157,6 +161,7 @@ void* threadfunc(void* thread_param)
     struct sockaddr_in *addr = thread_struct->socket_address;
     int new_fd = thread_struct->new_fd;
     int file_fd;
+    
 
     syslog(LOG_INFO, "Accepted connection from %s", inet_ntoa(addr->sin_addr));
 
@@ -192,23 +197,79 @@ void* threadfunc(void* thread_param)
         }
 
         
-        if (strchr(buffer, '\n')) {
+        if (strchr(buffer, '\n') || strncmp(buffer, IOCTL_CMD_STR, strlen(IOCTL_CMD_STR)) == 0)
+        {
             break;
         }
     }
     
     if(total_received > 0)
     {
-    
-    
-    
-    //#ifdef USE_AESD_CHAR_DEVICE
-        //file_fd = open("/dev/aesdchar", O_WRONLY);
-    //#else
-        file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
-    //#endif
+        //Logic for string command IOCTL:
+        if (strncmp(buffer, IOCTL_CMD_STR, strlen(IOCTL_CMD_STR)) == 0) 
+        {
+            unsigned int write_cmd, write_cmd_offset;
+            if (sscanf(buffer + strlen(IOCTL_CMD_STR), "%u,%u", &write_cmd, &write_cmd_offset) == 2) 
+            {
+                syslog(LOG_INFO, "Parsed IOCTL: cmd = %u, offset = %u", write_cmd, write_cmd_offset);
 
-    if (file_fd == -1) {
+                struct aesd_seekto seekto = 
+                {
+                    .write_cmd = write_cmd,
+            	    .write_cmd_offset = write_cmd_offset
+        	};
+        	
+        	int file_fd = open("/dev/aesdchar", O_RDWR);
+        	if (file_fd < 0) 
+        	{
+            	    syslog(LOG_ERR, "Failed to open aesdchar for IOCTL");
+        	} 
+        	else 
+        	{
+            	    // Send the ioctl
+            	    if (ioctl(file_fd, AESDCHAR_IOCSEEKTO, &seekto) == -1) 
+            	    {
+                	syslog(LOG_ERR, "IOCTL failed: %s", strerror(errno));
+                	close(file_fd);
+                        pthread_mutex_unlock(&aesdsocket_mutex);
+                        free(buffer);
+    			pthread_mutex_unlock(&aesdsocket_mutex);
+    			thread_struct->status = true;
+    			return NULL;
+                        
+            	    } 
+            	    else 
+            	    {
+                	char send_buffer[buffer_size];
+			syslog(LOG_INFO, "IOCTL success, reading from new offset");
+			while ((bytes_received = read(file_fd, send_buffer, buffer_size)) > 0)
+		        {
+           		    ssize_t sent = send(new_fd, send_buffer, bytes_received, 0);
+    			    syslog(LOG_INFO, "Read %zd bytes, sent %zd", bytes_received, sent);
+    			    syslog(LOG_INFO, "Data: [%.*s]", (int)bytes_received, send_buffer);
+                        }
+            	    }
+                    close(file_fd);
+                }
+            } 
+            else 
+            {
+        	syslog(LOG_ERR, "Malformed IOCTL string: %s", buffer);
+    	    }
+    	    
+    	    syslog(LOG_INFO, "Closed connection from %s", inet_ntoa(addr->sin_addr));
+    	    close(new_fd);
+    	    free(buffer);
+    	    thread_struct->status = true;
+    	    pthread_mutex_unlock(&aesdsocket_mutex);
+            return NULL;
+        }
+    
+        file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
+    
+
+    if (file_fd == -1) 
+    {
         syslog(LOG_ERR, "Failed to open file");
         close(new_fd);
         free(buffer);
@@ -371,13 +432,7 @@ int main(int argc, char *argv[])
 	    }
 	    node = temp;  
 	    
-	}
-        
-        
-        
-        
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        
+	} 
     }
 
     close(sockfd);

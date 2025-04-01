@@ -100,3 +100,31 @@ void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
 {
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
 }
+
+size_t aesd_circular_buffer_size(struct aesd_circular_buffer *buffer) 
+{
+    size_t size = 0;
+    uint8_t i;
+    for (i = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; i++) 
+    {
+        if (buffer->entry[i].buffptr != NULL) 
+        {
+            size += 1;
+        }
+    }
+    return size;
+}
+
+size_t aesd_circular_buffer_total_size(struct aesd_circular_buffer *buffer) 
+{
+    size_t total = 0;
+    uint8_t i;
+    for (i = 0; i < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; i++) 
+    {
+        if (buffer->entry[i].buffptr != NULL) 
+        {
+            total += buffer->entry[i].size;
+        }
+    }
+    return total;
+}
