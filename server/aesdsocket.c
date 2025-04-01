@@ -206,6 +206,7 @@ void* threadfunc(void* thread_param)
     if(total_received > 0)
     {
         //Logic for string command IOCTL:
+        #ifdef USE_AESD_CHAR_DEVICE
         if (strncmp(buffer, IOCTL_CMD_STR, strlen(IOCTL_CMD_STR)) == 0) 
         {
             unsigned int write_cmd, write_cmd_offset;
@@ -230,6 +231,7 @@ void* threadfunc(void* thread_param)
             	    if (ioctl(file_fd, AESDCHAR_IOCSEEKTO, &seekto) == -1) 
             	    {
                 	syslog(LOG_ERR, "IOCTL failed: %s", strerror(errno));
+                	syslog(LOG_ERR, "Used cmd: %ld\n", AESDCHAR_IOCSEEKTO);
                 	close(file_fd);
                         pthread_mutex_unlock(&aesdsocket_mutex);
                         free(buffer);
@@ -264,6 +266,7 @@ void* threadfunc(void* thread_param)
     	    pthread_mutex_unlock(&aesdsocket_mutex);
             return NULL;
         }
+        #endif
     
         file_fd = open(FILE_PATH, O_CREAT | O_WRONLY | O_APPEND, 0666);
     

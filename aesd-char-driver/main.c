@@ -204,7 +204,7 @@ static loff_t aesd_llseek(struct file *file, loff_t offset, int whence)
     return fixed_size_llseek(file, offset, whence, total_size);
 }
 
-long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long aesd_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     struct aesd_seekto seekto;
     struct aesd_dev *dev = filp->private_data;
@@ -244,7 +244,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         pr_info("IOCTL SEEK: cmd=%u, offset=%u, f_pos=%lld\n", seekto.write_cmd, seekto.write_cmd_offset, new_f_pos);
         return 0;
     }
-    
+    pr_info("Cmd used: %ld", cmd);
     return -ENOTTY;    //wrong command chosen.
 }
 
@@ -254,7 +254,7 @@ struct file_operations aesd_fops = {
     .write =    aesd_write,
     .open =     aesd_open,
     .llseek =   aesd_llseek,
-    .unlocked_ioctl = aesd_ioctl,
+    .unlocked_ioctl 	= 	aesd_unlocked_ioctl,
     .release =  aesd_release,
 };
 

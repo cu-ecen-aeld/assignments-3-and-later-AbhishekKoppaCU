@@ -43,6 +43,8 @@ struct aesd_dev
     struct temp_buffer temp_buf;
 };
 
+static long aesd_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+
 
 
 #endif /* AESD_CHAR_DRIVER_AESDCHAR_H_ */
